@@ -1,4 +1,3 @@
-
 """
 Config file
 
@@ -9,7 +8,6 @@ import logging
 
 
 class CONFIG:
-
     # Logging:
     USE_LOGGER = False
     LOGS_LEVEL = logging.INFO
@@ -36,7 +34,7 @@ class CONFIG:
     MAX_QUEUED_BRANCHES = None
 
     # RSIP
-    MAX_ESTIMATED_MEM_USAGE = 64 * 10 ** 9
+    MAX_ESTIMATED_MEM_USAGE = 64 * 10**9
     OPTIMISED_RELU_RELAXATION_MAX_BOUNDS_MULTIPLIER = 3
 
     # Pre-processing:
@@ -56,7 +54,9 @@ class CONFIG:
     USE_OPTIMISED_RELAXATION_SPLIT_HEURISTIC = True
     USE_SIMPLE_LP = True
     NUM_ITER_OPTIMISED_RELAXATIONS = 3
-    USE_LP_PRESOLVE = 0  # 0 for off, 1 for on. The problem is usually solved faster without Presolve.
+    USE_LP_PRESOLVE = (
+        0  # 0 for off, 1 for on. The problem is usually solved faster without Presolve.
+    )
 
     # Gradient Descent:
     GRADIENT_DESCENT_INTERVAL = 1
