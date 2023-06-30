@@ -7,23 +7,25 @@ Author: Patrick Henriksen <patrick@henriksen.as>
 import os
 import pickle
 import time
-import psutil
 
+import psutil
 import torch
 import torch.multiprocessing as mp
 
 torch.set_num_threads(1)
-torch.multiprocessing.set_sharing_strategy('file_system')  # Reduces the number of file descriptors opened by torch
+torch.multiprocessing.set_sharing_strategy(
+    "file_system"
+)  # Reduces the number of file descriptors opened by torch
 
 from multiprocessing.managers import BaseManager
 
 import numpy as np
 
-from verinet.verification.verifier import Verifier
-from verinet.verification.verifier_util import Status, Branch
-from verinet.verification.objective import Objective
-from verinet.util.logger import get_logger
 from verinet.util.config import CONFIG
+from verinet.util.logger import get_logger
+from verinet.verification.objective import Objective
+from verinet.verification.verifier import Verifier
+from verinet.verification.verifier_util import Branch, Status
 
 logger = get_logger(CONFIG.LOGS_LEVEL_VERINET, __name__, "../../logs/", "verinet_log")
 
@@ -55,7 +57,7 @@ class CustomManager(BaseManager):
     pass
 
 
-CustomManager.register('ParameterManager', ParameterManager)
+CustomManager.register("ParameterManager", ParameterManager)
 
 custom_manager = CustomManager()
 custom_manager.start()
@@ -69,10 +71,11 @@ class VeriNet:
 
     # noinspection PyUnresolvedReferences,PyDictCreation
     def __init__(self, max_procs: int = None, use_gpu: bool = False):
-
         self._mp_context = self._set_mp_context()
 
-        self._max_procs = self._mp_context.cpu_count() if max_procs is None else max_procs
+        self._max_procs = (
+            self._mp_context.cpu_count() if max_procs is None else max_procs
+        )
         self._parameter_manager = custom_manager.ParameterManager()
 
         # Variables used in verify()
@@ -118,7 +121,6 @@ class VeriNet:
 
     # noinspection PyArgumentList
     def __del__(self):
-
         """
         Last resort attempt for cleaning up stuck resource tracker processes.
         """
@@ -177,7 +179,6 @@ class VeriNet:
 
     @staticmethod
     def _set_mp_context():
-
         """
         Decides whether to use fork() or spawn() depending on if Cuda is enabled.
 
@@ -187,7 +188,9 @@ class VeriNet:
 
         if CONFIG.CHILDPROC_TYPE == "fork":
             if torch.cuda.is_available():  # Fork() only works if cuda is disabled.
-                logger.warning("Fork is not supported with Cuda enabled, switching to spawn.\n")
+                logger.warning(
+                    "Fork is not supported with Cuda enabled, switching to spawn.\n"
+                )
                 return mp.get_context("spawn")
             else:
                 return mp.get_context("fork")
@@ -197,15 +200,25 @@ class VeriNet:
 
         elif CONFIG.CHILDPROC_TYPE == "forkserver":
             ctx = mp.get_context("forkserver")
-            ctx.set_forkserver_preload(['.verifier', '.objective', 'multiprocessing.managers', 'pickle', 'Objective',
-                                        'Verifier', 'BaseManager'])
+            ctx.set_forkserver_preload(
+                [
+                    ".verifier",
+                    ".objective",
+                    "multiprocessing.managers",
+                    "pickle",
+                    "Objective",
+                    "Verifier",
+                    "BaseManager",
+                ]
+            )
             return ctx
 
         else:
-            raise ValueError(f"config.childproc_type: {CONFIG.CHILDPROC_TYPE} not recognised")
+            raise ValueError(
+                f"config.childproc_type: {CONFIG.CHILDPROC_TYPE} not recognised"
+            )
 
     def _init_workers(self):
-
         """
         Initialises workers
         """
@@ -213,7 +226,6 @@ class VeriNet:
         self._all_children_done.clear()
 
         if self._workers is None or self._num_workers < self._max_procs:
-
             self._create_workers(self._max_procs - self._num_workers)
             # noinspection PyUnresolvedReferences
             self._master_worker_pid.value = self._workers[0].pid
@@ -225,10 +237,7 @@ class VeriNet:
             logger.debug(f"Added poison pill {i + 1} of {self._max_procs}")
             self._branch_queue.put(None)  # "Poison pill for killing child processes"
 
-    def verify(self,
-               objective: Objective,
-               timeout: float = None):
-
+    def verify(self, objective: Objective, timeout: float = None):
         """
         Starts the verification process.
 
@@ -269,7 +278,9 @@ class VeriNet:
         self._suspend_workers()
 
         if (not did_timeout) and (self._status is Status.Undecided):
-            assert self._active_tasks.value == 0, "Ended before timeout without finishing all active tasks"
+            assert (
+                self._active_tasks.value == 0
+            ), "Ended before timeout without finishing all active tasks"
             self._status = Status.Safe
 
         logger.debug(f"Main process finished with status: {self._status}")
@@ -287,7 +298,6 @@ class VeriNet:
         return self.status
 
     def one_shot_attempt(self, objective: Objective) -> Status:
-
         """
         Makes a one-shot attempt at solving the verification problem without branching.
 
@@ -314,11 +324,16 @@ class VeriNet:
 
         if status == Status.Undecided:
             self._all_children_done.wait()
-            status = solver.verify(Branch(0, None, []), finished_flag=None, needs_branches=None,
-                                   put_queue=self._put_branch, queue_depth=0, no_split=True)
+            status = solver.verify(
+                Branch(0, None, []),
+                finished_flag=None,
+                needs_branches=None,
+                put_queue=self._put_branch,
+                queue_depth=0,
+                no_split=True,
+            )
 
         if status == Status.Safe or status == Status.Unsafe:
-
             self._status = status
 
             if status == Status.Unsafe:
@@ -338,7 +353,6 @@ class VeriNet:
         return status
 
     def _set_activate_master_worker_flags(self):
-
         """
         Sets the necessary flags to restart all master worker.
         """
@@ -351,7 +365,6 @@ class VeriNet:
         self._activate_master_worker.set()
 
     def _set_activate_slave_workers_flags(self):
-
         """
         Sets the necessary flags to restart all workers.
         """
@@ -364,7 +377,6 @@ class VeriNet:
         self._activate_slave_workers.set()
 
     def _create_workers(self, num: int = None):
-
         """
         Creates num workers.
 
@@ -386,7 +398,9 @@ class VeriNet:
 
         for i in range(num):
             if CONFIG.PROFILE_WORKER:
-                worker = self._mp_context.Process(target=self._start_worker_profile, args=())
+                worker = self._mp_context.Process(
+                    target=self._start_worker_profile, args=()
+                )
             else:
                 worker = self._mp_context.Process(target=self._run_worker, args=())
             worker.start()
@@ -398,7 +412,6 @@ class VeriNet:
         self._workers = workers
 
     def _suspend_workers(self):
-
         """
         Suspends children by putting 'None' on the branch queue.
 
@@ -427,7 +440,6 @@ class VeriNet:
             raise ChildProcessError("At least one worker did not suspend as expected")
 
     def _wait_for_workers(self, timeout: float):
-
         """
         Wait until children are done.
 
@@ -449,7 +461,6 @@ class VeriNet:
 
     # noinspection PyArgumentList
     def _join_workers(self):
-
         """
         Joins all workers.
         """
@@ -463,7 +474,9 @@ class VeriNet:
         for worker in self._workers:
             worker.join()
             if worker.exitcode is None:
-                logger.warning(f"Main process could not join with worker, terminating instead")
+                logger.warning(
+                    f"Main process could not join with worker, terminating instead"
+                )
                 worker.terminate()
             self._active_workers.value -= 1
 
@@ -475,7 +488,6 @@ class VeriNet:
         logger.debug(f"Main process finished joining workers")
 
     def _run_worker(self):
-
         """
         Runs the worker.
 
@@ -491,10 +503,11 @@ class VeriNet:
         while True:
             logger.debug(f"Worker {os.getpid()} requesting branch from queue")
             branch = self._branch_queue.get()
-            logger.debug(f"Worker {os.getpid()} retrieved branch <addr: {hex(id(branch))}> from queue")
+            logger.debug(
+                f"Worker {os.getpid()} retrieved branch <addr: {hex(id(branch))}> from queue"
+            )
 
             if branch is None:  # Handle poison pill
-
                 del solver
                 self._suspend_worker()
                 solver = self._get_solver()
@@ -504,20 +517,29 @@ class VeriNet:
                     continue
 
             if self._finished_flag.is_set():  # Empty multiprocessing queue
-
-                logger.debug(f"Worker {os.getpid()} discarded branch <addr: {hex(id(branch))}>")
+                logger.debug(
+                    f"Worker {os.getpid()} discarded branch <addr: {hex(id(branch))}>"
+                )
                 with self._active_tasks_lock:
                     self._active_tasks.value -= 1
                 continue
 
-            logger.debug(f"Worker {os.getpid()} started iteration, active tasks: {self._active_tasks.value}")
+            logger.debug(
+                f"Worker {os.getpid()} started iteration, active tasks: {self._active_tasks.value}"
+            )
             self._verify_branch(branch, solver)
-            self._finished_subtree(solver.max_depth, solver.branches_explored, solver.status, solver.counter_example)
-            logger.debug(f"Worker {os.getpid()} finished iteration, Status: {solver.status}, "
-                         f"active tasks: {self._active_tasks.value}")
+            self._finished_subtree(
+                solver.max_depth,
+                solver.branches_explored,
+                solver.status,
+                solver.counter_example,
+            )
+            logger.debug(
+                f"Worker {os.getpid()} finished iteration, Status: {solver.status}, "
+                f"active tasks: {self._active_tasks.value}"
+            )
 
     def _verify_branch(self, branch: Branch, solver: Verifier):
-
         """
         Verifies the given branch
 
@@ -528,13 +550,20 @@ class VeriNet:
                 The Verifier object
         """
 
-        solver.verify(branch, finished_flag=self._finished_flag, needs_branches=self._needs_branches,
-                      put_queue=self._put_branch, queue_depth=self._queue_depth, no_split=False)
+        solver.verify(
+            branch,
+            finished_flag=self._finished_flag,
+            needs_branches=self._needs_branches,
+            put_queue=self._put_branch,
+            queue_depth=self._queue_depth,
+            no_split=False,
+        )
 
-        logger.debug(f"Worker {os.getpid()} finished solving branch <addr: {hex(id(branch))}>")
+        logger.debug(
+            f"Worker {os.getpid()} finished solving branch <addr: {hex(id(branch))}>"
+        )
 
     def _suspend_worker(self):
-
         """
         Suspends the worker until signaled by main process.
         """
@@ -547,7 +576,9 @@ class VeriNet:
             if self._active_workers.value == 0:
                 self._all_children_done.set()
 
-        logger.debug(f"Worker {os.getpid()} suspended, active procs: {self._active_workers.value}/{self._max_procs}")
+        logger.debug(
+            f"Worker {os.getpid()} suspended, active procs: {self._active_workers.value}/{self._max_procs}"
+        )
 
         if os.getpid() == self._master_worker_pid.value:
             self._activate_master_worker.wait()
@@ -557,7 +588,6 @@ class VeriNet:
         logger.debug(f"Worker {os.getpid()} reactivated")
 
     def _get_solver(self):
-
         """
         Gets the solver, unless self._destroy_flag is set, in which case None is
         returned.
@@ -572,10 +602,11 @@ class VeriNet:
             if os.getpid() == self._master_worker_pid.value:
                 model.set_device(self._master_worker_should_use_gpu)
 
-            return Verifier(model, objective, use_progress_bars=CONFIG.USE_PROGRESS_BARS)
+            return Verifier(
+                model, objective, use_progress_bars=CONFIG.USE_PROGRESS_BARS
+            )
 
     def _get_solver_args(self) -> tuple:
-
         """
         Helper function, extracting necessary solver args from multiprocessing queue.
 
@@ -586,9 +617,13 @@ class VeriNet:
         objective = pickle.loads(self.objective)
         return objective.model, objective
 
-    def _finished_subtree(self, max_depth: int, branches_explored: int,
-                          status: Status, counter_example: np.array = None):
-
+    def _finished_subtree(
+        self,
+        max_depth: int,
+        branches_explored: int,
+        status: Status,
+        counter_example: np.array = None,
+    ):
         """
         Called from workers when they finish their current subtree.
 
@@ -608,8 +643,9 @@ class VeriNet:
         """
 
         with self._work_lock:
-
-            self._max_depth = max_depth if max_depth > self._max_depth else self._max_depth
+            self._max_depth = (
+                max_depth if max_depth > self._max_depth else self._max_depth
+            )
             self._branches_explored += branches_explored
 
             if not self._finished_flag.is_set() and status == Status.Unsafe:
@@ -627,7 +663,6 @@ class VeriNet:
                 self._set_solution_found_flags()
 
     def _set_solution_found_flags(self):
-
         """
         Sets the necessary flags to tell other procs that a solution has been found
         """
@@ -637,7 +672,6 @@ class VeriNet:
         self._activate_master_worker.clear()
 
     def _needs_branches(self) -> bool:
-
         """
         Returns true if the queue needs more branches.
         """
@@ -645,7 +679,6 @@ class VeriNet:
         return self._active_tasks.value < (2 * self._max_procs)
 
     def _put_branch(self, branch: Branch):
-
         """
         This method is called by workers to put a branch into the queue.
 
@@ -654,7 +687,9 @@ class VeriNet:
                 The new branch.
         """
 
-        logger.debug(f"Worker {os.getpid()} started putting branch <addr: {hex(id(branch))}> on queue")
+        logger.debug(
+            f"Worker {os.getpid()} started putting branch <addr: {hex(id(branch))}> on queue"
+        )
 
         with self._work_lock:
             if not self._finished_flag.is_set():
@@ -663,10 +698,11 @@ class VeriNet:
                 if not self._finished_flag.is_set():
                     self._branch_queue.put(branch)
 
-        logger.debug(f"Worker {os.getpid()} finished putting branch <addr: {hex(id(branch))}> on queue")
+        logger.debug(
+            f"Worker {os.getpid()} finished putting branch <addr: {hex(id(branch))}> on queue"
+        )
 
     def _handle_memory(self):
-
         """
         This function kills all workers if memory usage is too large.
 
@@ -687,7 +723,9 @@ class VeriNet:
         if self._initial_mem_usage is None:
             self._initial_mem_usage = psutil.virtual_memory()[2]
 
-        elif (psutil.virtual_memory()[2] - self._initial_mem_usage) > CONFIG.MAX_ACCEPTED_MEMORY_INCREASE:
+        elif (
+            psutil.virtual_memory()[2] - self._initial_mem_usage
+        ) > CONFIG.MAX_ACCEPTED_MEMORY_INCREASE:
             logger.debug(f"Max accepted memory increase exceeded, performing cleanup.")
             self.cleanup()
             self._branch_queue = self._mp_context.Manager().Queue()
@@ -695,7 +733,6 @@ class VeriNet:
             self._init_workers()
 
     def _reset_params(self):
-
         """
         Resets all statistics stored from the last verification run.
         """
@@ -709,7 +746,6 @@ class VeriNet:
         self._destroy_flag.clear()
 
     def _log_mp_values(self):
-
         """
         Logs some multiprocessing values.
         """
@@ -719,11 +755,14 @@ class VeriNet:
         logger.debug(f"Finished flag: {self._finished_flag.is_set()}")
         logger.debug(f"Destroy flag: {self._destroy_flag.is_set()}")
         logger.debug(f"All workers done flag: {self._all_children_done.is_set()}")
-        logger.debug(f"Activate master worker flag: {self._activate_master_worker.is_set()}")
-        logger.debug(f"Activate all workers flag: {self._activate_slave_workers.is_set()}")
+        logger.debug(
+            f"Activate master worker flag: {self._activate_master_worker.is_set()}"
+        )
+        logger.debug(
+            f"Activate all workers flag: {self._activate_slave_workers.is_set()}"
+        )
 
     def _start_worker_profile(self):
-
         """
         Used for profiling worker processes.
         """
@@ -732,11 +771,14 @@ class VeriNet:
         if not os.path.isdir(path):
             os.mkdir(path)
 
-        self._profile(self._run_worker, filepath=os.path.join(path, f'profile_worker_{os.getpid()}.txt'), args=())
+        self._profile(
+            self._run_worker,
+            filepath=os.path.join(path, f"profile_worker_{os.getpid()}.txt"),
+            args=(),
+        )
 
     # noinspection PyMethodMayBeStatic
     def _profile(self, func: callable, filepath: str, args: tuple = ()):
-
         """
         A wrapper for profiling methods.
 
@@ -752,27 +794,25 @@ class VeriNet:
                 The args used for calling the given function.
         """
 
-        from cProfile import Profile
         import pstats
+        from cProfile import Profile
 
         pr = Profile()
         pr.enable()
         func(*args)
         pr.disable()
 
-        with open(filepath, 'w+') as f:
+        with open(filepath, "w+") as f:
             ps = pstats.Stats(pr, stream=f)
-            ps.strip_dirs().sort_stats('cumtime').print_stats()
+            ps.strip_dirs().sort_stats("cumtime").print_stats()
 
     # noinspection PyArgumentList
     def cleanup(self):
-
         """
         Kills all child-processes
         """
 
         if os.getpid() == self._main_pid:
-
             if self._workers is not None:
                 self._join_workers()
                 self._cleanup_multiprocessing_resource_trackers()
@@ -784,7 +824,6 @@ class VeriNet:
 
     @staticmethod
     def _cleanup_multiprocessing_resource_trackers():
-
         """
         Force terminates resource tracker processes.
 
