@@ -1076,7 +1076,7 @@ class RSIP(SIP):
                     neuron_indices = node.non_lin_indices.unsqueeze(1)
 
                     node_nums = torch.zeros(len(neuron_indices), dtype=torch.long).unsqueeze(1) + node.idx
-                    indices.append(torch.cat((node_nums, neuron_indices), dim=1))
+                    indices.append(torch.cat((node_nums.to(self._device), neuron_indices), dim=1))
                     impacts.append(impact)
 
             if CONFIG.INPUT_NODE_SPLIT:
@@ -1086,6 +1086,12 @@ class RSIP(SIP):
                                           torch.LongTensor(list(range(self._nodes[0].in_size))).unsqueeze(1)), dim=1))
                 impacts.append(self._nodes[0].impact)
 
+            for i, t in enumerate(impacts):
+                impacts[i] = t.to(self._device)
+                
+            for i, t in enumerate(indices):
+                indices[i] = t.to(self._device)
+                
             impacts = torch.cat(impacts, dim=0)
             indices = torch.cat(indices, dim=0)
 
@@ -1136,7 +1142,7 @@ class RSIP(SIP):
                 if len(node.connections_from) != 1:
                     raise ValueError("Expected one input connection.")
 
-                idx = node.non_lin_indices
+                idx = node.non_lin_indices.cpu()
 
                 if lower:
                     symb_bounds_in_neg = output_node.intermediate_bounds[node.idx]['low'][:, idx].clone()
@@ -1170,7 +1176,7 @@ class RSIP(SIP):
                 if len(node.connections_from) != 1:
                     raise ValueError("Expected one input connection.")
 
-                this_idx = node.non_lin_indices
+                this_idx = node.non_lin_indices.cpu()
                 if this_idx.shape[0] == 0:
                     continue
 
@@ -1205,6 +1211,8 @@ class RSIP(SIP):
 
                         node.impact += (indirect_impact.sum(dim=0) *
                                         CONFIG.INDIRECT_HIDDEN_MULTIPLIER)
+                        
+                        # node.impact.to(self._device)
 
     def _calc_input_node_indirect_impact(self):
 

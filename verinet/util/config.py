@@ -22,7 +22,7 @@ class CONFIG:
     # Multiprocessing:
     CHILDPROC_TYPE = "forkserver"
     QUEUE_DEPTH = 1
-    MAX_CHILDREN_SUSPEND_TIME = 600
+    MAX_CHILDREN_SUSPEND_TIME = 10  # 600
     MAX_ACCEPTED_MEMORY_INCREASE = 20
     USE_ONE_SHOT_ATTEMPT = True
     USE_PRE_PROCESSING_ATTACK = True  # Only used if 'use_one_shot_attempt' is True

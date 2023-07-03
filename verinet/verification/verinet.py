@@ -464,12 +464,12 @@ class VeriNet:
         """
         Joins all workers.
         """
-
+       
         self._destroy_flag.set()
         self._activate_master_worker.set()
         self._activate_slave_workers.set()
         self._all_children_done.wait(CONFIG.MAX_CHILDREN_SUSPEND_TIME)
-
+        
         logger.debug(f"Main process started joining workers")
         for worker in self._workers:
             worker.join()
