@@ -349,11 +349,11 @@ class RSIP(SIP):
 
         bounds_concrete_pre = node.bounds_concrete_pre[0][node.non_lin_indices]
         non_lin_this = torch.nonzero((node.get_non_linear_neurons(bounds_concrete_pre)))[:, 0]
-        node.non_lin_indices = node.non_lin_indices[non_lin_this]
+        node.non_lin_indices = node.non_lin_indices.to(non_lin_this.device)[non_lin_this]
 
         for key1 in node.intermediate_bounds:
             for key2 in node.intermediate_bounds[key1]:
-                node.intermediate_bounds[key1][key2] = node.intermediate_bounds[key1][key2][non_lin_this]
+                node.intermediate_bounds[key1][key2] = node.intermediate_bounds[key1][key2][non_lin_this.cpu()]
 
     # noinspection PyTypeChecker
     def _get_non_linear_neurons(self, node_num: int, optimise_computations: bool = True) -> tuple:
