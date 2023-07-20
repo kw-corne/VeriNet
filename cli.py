@@ -1,6 +1,8 @@
 import ast
 import sys
 
+from dnnv.nn import Path
+
 from verinet.parsers.onnx_parser import ONNXParser
 from verinet.parsers.vnnlib_parser import VNNLIBParser
 from verinet.util.config import CONFIG
@@ -15,6 +17,7 @@ if __name__ == "__main__":
     max_procs = int(sys.argv[6])
     use_gpu = sys.argv[7] == "True"
     dnnv_simplify = sys.argv[8] == "True"
+    transpose_matmul_weights = sys.argv[9] == "True"
 
     config = ast.literal_eval(config)
 
@@ -26,7 +29,7 @@ if __name__ == "__main__":
 
     onnx_parser = ONNXParser(
         network,
-        transpose_fc_weights=False,
+        transpose_fc_weights=transpose_matmul_weights,
         use_64bit=False,
         dnnv_simplify=dnnv_simplify,
     )
