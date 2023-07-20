@@ -14,6 +14,7 @@ if __name__ == "__main__":
     input_shape = ast.literal_eval(sys.argv[5])
     max_procs = int(sys.argv[6])
     use_gpu = sys.argv[7] == "True"
+    dnnv_simplify = sys.argv[8] == "True"
 
     config = ast.literal_eval(config)
 
@@ -27,6 +28,7 @@ if __name__ == "__main__":
         network,
         transpose_fc_weights=False,
         use_64bit=False,
+        dnnv_simplify=dnnv_simplify,
     )
     model = onnx_parser.to_pytorch()
     model.eval()

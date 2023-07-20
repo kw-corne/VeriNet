@@ -35,7 +35,8 @@ class ONNXParser:
                  filepath: str,
                  transpose_fc_weights: bool = False,
                  input_names: tuple = ('0', 'x', 'x:0', 'X_0', 'input', 'input.1', 'Input_1', 'ImageInputLayer'),
-                 use_64bit: bool = False):
+                 use_64bit: bool = False,
+                 dnnv_simplify: bool = True):
 
         """
         Args:
@@ -47,9 +48,14 @@ class ONNXParser:
                 The name of the network's input in the onnx _model.
             use_64bit:
                 If true, values are stored as 64 bit.
+            dnnv_simplify:
+                If true, simplifies the network using dnnv.
         """
 
         try:
+            # dnnv simplify can cause verinet to crash
+            if not dnnv_simplify:
+                raise ModuleNotFoundError
             import os
             os.environ['TF_CPP_MIN_LOG_LEVEL'] = '2'
             from dnnv.nn import parse
