@@ -1,4 +1,7 @@
 import ast
+import shlex
+import signal
+import subprocess
 import sys
 
 from dnnv.nn import Path
@@ -35,14 +38,32 @@ if __name__ == "__main__":
     )
     model = onnx_parser.to_pytorch()
     model.eval()
-
     vnnlib_parser = VNNLIBParser(property)
     objectives = vnnlib_parser.get_objectives_from_vnnlib(model, input_shape)
 
     solver = VeriNet(use_gpu=use_gpu, max_procs=max_procs)
 
+    # HACK: `solver.cleanup()` can hang forever. No time to find the root
+    # cause right now, so doing a hacky way.
+    def _cleanup():
+        cmd = "pkill -f multiprocessing.spawn"
+        subprocess.run(shlex.split(cmd))
+        cmd = "pkill -f multiprocessing.forkserver"
+        subprocess.run(shlex.split(cmd))
+        solver.cleanup()
+
+    def _handler(*_):
+        raise Exception("Cleanup timed out")
+
+    signal.signal(signal.SIGALRM, _handler)
+
     try:
+        # TODO: Loop em
         status = solver.verify(objective=objectives[0], timeout=timeout)
         print("STATUS: ", status)
     finally:
-        solver.cleanup()
+        signal.alarm(1)
+        try:
+            _cleanup()
+        except Exception as e:
+            print(e)
