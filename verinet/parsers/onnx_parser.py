@@ -36,7 +36,7 @@ class ONNXParser:
                  transpose_fc_weights: bool = False,
                  input_names: tuple = ('0', 'x', 'x:0', 'X_0', 'input', 'input.1', 'Input_1', 'ImageInputLayer'),
                  use_64bit: bool = False,
-                 dnnv_simplify: bool = True):
+                 dnnv_simplify: bool = False):
 
         """
         Args:
@@ -52,6 +52,8 @@ class ONNXParser:
                 If true, simplifies the network using dnnv.
         """
 
+        self._simplified_input_shape = None
+
         try:
             # dnnv simplify can cause verinet to crash
             if not dnnv_simplify:
@@ -60,6 +62,7 @@ class ONNXParser:
             os.environ['TF_CPP_MIN_LOG_LEVEL'] = '2'
             from dnnv.nn import parse
             op_graph = parse(Path(filepath)).simplify()
+            self._simplified_input_shape = op_graph.input_shape
             self._model = op_graph.as_onnx()
         except ModuleNotFoundError:
             logger.warning("DNNV package not found, attempting to proceed without network simplification.")
@@ -86,6 +89,9 @@ class ONNXParser:
         self._tensor_type = torch.DoubleTensor if use_64bit else torch.FloatTensor
 
         self._node_to_idx = {}
+
+    def get_simplified_input_shape(self):
+        return self._simplified_input_shape or None
 
     def to_pytorch(self) -> VeriNetNN:
 

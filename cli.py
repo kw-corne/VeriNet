@@ -4,7 +4,7 @@ import signal
 import subprocess
 import sys
 
-from dnnv.nn import Path
+import onnxruntime
 
 from verinet.parsers.onnx_parser import ONNXParser
 from verinet.parsers.vnnlib_parser import VNNLIBParser
@@ -36,6 +36,12 @@ if __name__ == "__main__":
         use_64bit=False,
         dnnv_simplify=dnnv_simplify,
     )
+
+    new_input_shape = onnx_parser.get_simplified_input_shape()
+
+    if new_input_shape:
+        input_shape = new_input_shape[0]
+
     model = onnx_parser.to_pytorch()
     model.eval()
     vnnlib_parser = VNNLIBParser(property)
@@ -43,8 +49,8 @@ if __name__ == "__main__":
 
     solver = VeriNet(use_gpu=use_gpu, max_procs=max_procs)
 
-    # HACK: `solver.cleanup()` can hang forever. No time to find the root
-    # cause right now, so doing a hacky way.
+    # HACK: `solver.cleanup()` can hang forever. Dont have time to find the
+    # root cause right now, so solving it in a hacky way.
     def _cleanup():
         cmd = "pkill -f multiprocessing.spawn"
         subprocess.run(shlex.split(cmd))
