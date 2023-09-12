@@ -53,9 +53,9 @@ if __name__ == "__main__":
     # root cause right now, so solving it in a hacky way.
     def _cleanup():
         cmd = "pkill -f multiprocessing.spawn"
-        subprocess.run(shlex.split(cmd))
+        subprocess.run(shlex.split(cmd), shell=True)
         cmd = "pkill -f multiprocessing.forkserver"
-        subprocess.run(shlex.split(cmd))
+        subprocess.run(shlex.split(cmd), shell=True)
         solver.cleanup()
 
     def _handler(*_):
