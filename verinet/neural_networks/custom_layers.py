@@ -100,7 +100,7 @@ class AddConstant(nn.Module):
     # noinspection PyMethodMayBeStatic
     def forward(self, x1: torch.Tensor):
 
-        return x1 + self.term
+        return x1 + self.term.to('cuda')
 
 
 class MulConstant(nn.Module):
@@ -115,7 +115,7 @@ class MulConstant(nn.Module):
         super(MulConstant, self).__init__()
 
     def forward(self, x1: torch.Tensor):
-        return x1 * self.multiplier
+        return x1 * self.multiplier.to('cuda')
 
 
 class Transpose(nn.Module):
